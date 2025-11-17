@@ -17,7 +17,6 @@ import java.time.OffsetDateTime;
 @RequestMapping("/v1/google-fit")
 @RequiredArgsConstructor
 public class GoogleFitController {
-
     private final GoogleFitService googleFitService;
 
     @GetMapping("/activity")

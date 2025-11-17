@@ -1,5 +1,6 @@
 package org.wa.google.fit.integration.service.service.impl;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.wa.google.fit.integration.service.mapper.ActivityDataMapper;
 import org.wa.google.fit.integration.service.mapper.GoogleJsonMapper;
 import org.wa.google.fit.integration.service.mapper.HeartRateDataMapper;
@@ -28,12 +29,19 @@ public class GoogleFitServiceImpl implements GoogleFitService {
     private final SleepDataMapper sleepDataMapper;
     private final HeartRateDataMapper heartRateDataMapper;
 
+    @Value("${google-fit.data-type-steps}")
+    private String dataTypeSteps;
+
+    @Value("${google-fit.data-type-calories}")
+    private String dataTypeCalories;
+
+    @Value("${google-fit.data-type-distance}")
+    private String dataTypeDistance;
+
     public Mono<ActivityDataResponse> getActivity(String email, OffsetDateTime date, String refreshToken) {
         return googleTokenRefreshService.refreshAccessToken(refreshToken)
                 .flatMap(token -> aggregateService.aggregate(token, date,
-                        "com.google.step_count.delta",
-                        "com.google.calories.expended",
-                        "com.google.distance.delta"
+                        dataTypeSteps, dataTypeCalories, dataTypeDistance
                 )).map(json -> activityDataMapper.toResponse(email, jsonMapper.extractSteps(json),
                         jsonMapper.extractDistance(json),
                         jsonMapper.extractCalories(json),

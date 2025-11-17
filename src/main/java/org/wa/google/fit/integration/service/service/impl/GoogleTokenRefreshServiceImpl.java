@@ -2,6 +2,11 @@ package org.wa.google.fit.integration.service.service.impl;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.annotation.PostConstruct;
+import lombok.RequiredArgsConstructor;
+import org.wa.google.fit.integration.service.constants.OAuthConstants;
+import org.wa.google.fit.integration.service.exception.ParseTokenException;
+import org.wa.google.fit.integration.service.exception.TokenNotFoundException;
 import org.wa.google.fit.integration.service.service.GoogleTokenRefreshService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
@@ -15,6 +20,7 @@ import reactor.core.publisher.Mono;
 import java.util.Map;
 
 @Service
+@RequiredArgsConstructor
 public class GoogleTokenRefreshServiceImpl implements GoogleTokenRefreshService {
 
     @Value("${GOOGLE_CLIENT_ID}")
@@ -23,29 +29,36 @@ public class GoogleTokenRefreshServiceImpl implements GoogleTokenRefreshService 
     @Value("${GOOGLE_CLIENT_SECRET}")
     private String clientSecret;
 
-    private final WebClient webClient = WebClient.builder()
-            .baseUrl("https://oauth2.googleapis.com")
-            .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_FORM_URLENCODED_VALUE)
-            .build();
+    @Value("${google-fit.token-endpoint}")
+    private String tokenEndpoint;
+
+    @Value("${google-fit.googleapis-base-url}")
+    private String googleApiBaseUrl;
+
+    private final OAuthConstants constants;
+
+    private WebClient webClient;
+
+    @PostConstruct
+    private void init() {
+        this.webClient = WebClient.builder()
+                .baseUrl(googleApiBaseUrl)
+                .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_FORM_URLENCODED_VALUE)
+                .build();
+    }
 
     public Mono<String> refreshAccessToken(String refreshToken) {
-        String scopes = "https://www.googleapis.com/auth/fitness.activity.read " +
-                "https://www.googleapis.com/auth/fitness.location.read " +
-                "https://www.googleapis.com/auth/fitness.body.read " +
-                "https://www.googleapis.com/auth/fitness.heart_rate.read " +
-                "https://www.googleapis.com/auth/fitness.sleep.read";
-
         return webClient.post()
-                .uri("/token")
+                .uri(tokenEndpoint)
                 .contentType(MediaType.APPLICATION_FORM_URLENCODED)
                 .body(BodyInserters.fromFormData("client_id", clientId)
                         .with("client_secret", clientSecret)
                         .with("refresh_token", refreshToken)
                         .with("grant_type", "refresh_token")
-                        .with("scope", scopes))
+                        .with("scope", constants.getScope()))
                 .retrieve()
                 .onStatus(HttpStatusCode::isError, clientResponse ->
-                        clientResponse.bodyToMono(String.class).flatMap(errorBody -> Mono.error(new RuntimeException("Failed to refresh token: " + clientResponse.statusCode() + " - " + errorBody)))
+                        clientResponse.bodyToMono(String.class).flatMap(errorBody -> Mono.error(new ParseTokenException("Не удалось обновить токен: " + clientResponse.statusCode() + " - " + errorBody)))
                 )
                 .bodyToMono(String.class)
                 .map(json -> {
@@ -54,11 +67,11 @@ public class GoogleTokenRefreshServiceImpl implements GoogleTokenRefreshService 
                         });
                         String accessToken = (String) map.get("access_token");
                         if (accessToken == null) {
-                            throw new RuntimeException("No access_token in response: " + json);
+                            throw new TokenNotFoundException("В ответе нет нужного токена: " + json);
                         }
                         return accessToken;
                     } catch (Exception e) {
-                        throw new RuntimeException("Failed to parse access token from response: " + json, e);
+                        throw new ParseTokenException("Не удалось прочитать токен: " + json);
                     }
                 });
     }

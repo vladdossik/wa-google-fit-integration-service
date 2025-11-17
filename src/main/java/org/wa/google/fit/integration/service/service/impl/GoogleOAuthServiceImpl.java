@@ -2,6 +2,10 @@ package org.wa.google.fit.integration.service.service.impl;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.annotation.PostConstruct;
+import org.wa.google.fit.integration.service.constants.OAuthConstants;
+import org.wa.google.fit.integration.service.exception.ParseTokenException;
+import org.wa.google.fit.integration.service.exception.TokenNotFoundException;
 import org.wa.google.fit.integration.service.service.GoogleOAuthService;
 import org.wa.google.fit.integration.service.service.InMemoryTokenStorageService;
 import lombok.RequiredArgsConstructor;
@@ -19,9 +23,14 @@ import java.util.Map;
 @Service
 @RequiredArgsConstructor
 public class GoogleOAuthServiceImpl implements GoogleOAuthService {
+    @Value("${google-fit.googleapis-base-url}")
+    private String googleApiBaseUrl;
 
-    private final InMemoryTokenStorageService tokenStorage;
-    private final WebClient webClient = WebClient.create("https://oauth2.googleapis.com");
+    @Value("${google-fit.redirect-url}")
+    private String redirectUrl;
+
+    @Value("${google-fit.token-endpoint}")
+    private String tokenEndpoint;
 
     @Value("${GOOGLE_CLIENT_ID}")
     private String clientId;
@@ -29,20 +38,30 @@ public class GoogleOAuthServiceImpl implements GoogleOAuthService {
     @Value("${GOOGLE_CLIENT_SECRET}")
     private String clientSecret;
 
-    public Mono<Map<String, String>> exchangeCodeForTokens(String code, String email) {
-        String redirectUri = "http://localhost:8080/v1/oauth/callback";
+    private final InMemoryTokenStorageService tokenStorage;
+    private final OAuthConstants constants;
 
+    private WebClient webClient;
+
+    @PostConstruct
+    private void init() {
+        this.webClient = WebClient.builder()
+                .baseUrl(googleApiBaseUrl)
+                .build();
+    }
+
+    public Mono<Map<String, String>> exchangeCodeForTokens(String code, String email) {
         return webClient.post()
-                .uri("/token")
+                .uri(tokenEndpoint)
                 .contentType(MediaType.APPLICATION_FORM_URLENCODED)
                 .body(BodyInserters.fromFormData("code", code)
                         .with("client_id", clientId)
                         .with("client_secret", clientSecret)
-                        .with("redirect_uri", redirectUri)
+                        .with("redirect_uri", redirectUrl)
                         .with("grant_type", "authorization_code"))
                 .retrieve()
                 .onStatus(HttpStatusCode::isError, clientResponse ->
-                        clientResponse.bodyToMono(String.class).flatMap(errorBody -> Mono.error(new RuntimeException("Failed to exchange code for tokens: " + clientResponse.statusCode() + " - " + errorBody)))
+                        clientResponse.bodyToMono(String.class).flatMap(errorBody -> Mono.error(new ParseTokenException("Не удалось прочитать токен")))
                 )
                 .bodyToMono(new ParameterizedTypeReference<Map<String, String>>() {
                 })
@@ -56,29 +75,23 @@ public class GoogleOAuthServiceImpl implements GoogleOAuthService {
     }
 
     public Mono<Map<String, String>> refreshAccessToken(String email) {
-        String refreshToken = tokenStorage.getUserToken(email);
-        if (refreshToken == null) {
-            return Mono.error(new RuntimeException("No refresh token found for email: " + email));
-        }
-
-        String scopes = "https://www.googleapis.com/auth/fitness.activity.read " +
-                "https://www.googleapis.com/auth/fitness.location.read " +
-                "https://www.googleapis.com/auth/fitness.body.read";
-
-        return webClient.post()
-                .uri("/token")
-                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
-                .body(BodyInserters.fromFormData("client_id", clientId)
-                        .with("client_secret", clientSecret)
-                        .with("refresh_token", refreshToken)
-                        .with("grant_type", "refresh_token")
-                        .with("scope", scopes))
-                .retrieve()
-                .onStatus(HttpStatusCode::isError, clientResponse ->
-                        clientResponse.bodyToMono(String.class).flatMap(errorBody -> Mono.error(new RuntimeException("Failed to refresh token: " + clientResponse.statusCode() + " - " + errorBody)))
-                )
-                .bodyToMono(String.class)
-                .map(this::parseJson);
+        return Mono.fromCallable(() -> tokenStorage.getUserToken(email))
+                .switchIfEmpty(Mono.error(new TokenNotFoundException("Не найден токен для email: " + email)))
+                .flatMap(refreshToken -> webClient.post()
+                        .uri(tokenEndpoint)
+                        .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                        .body(BodyInserters.fromFormData("client_id", clientId)
+                                .with("client_secret", clientSecret)
+                                .with("refresh_token", refreshToken)
+                                .with("grant_type", "refresh_token")
+                                .with("scope", constants.getScope()))
+                        .retrieve()
+                        .onStatus(HttpStatusCode::isError, clientResponse ->
+                                clientResponse.bodyToMono(String.class).flatMap(errorBody ->
+                                        Mono.error(new ParseTokenException("Не удалось обновить токен: " + clientResponse.statusCode() + " - " + errorBody)))
+                        )
+                        .bodyToMono(String.class)
+                        .map(this::parseJson));
     }
 
     private Map<String, String> parseJson(String json) {
@@ -86,7 +99,7 @@ public class GoogleOAuthServiceImpl implements GoogleOAuthService {
             return new ObjectMapper().readValue(json, new TypeReference<>() {
             });
         } catch (Exception e) {
-            throw new RuntimeException("Failed to parse token response", e);
+            throw new ParseTokenException("Не удалось прочитать токен");
         }
     }
 }

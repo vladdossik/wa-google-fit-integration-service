@@ -1,9 +1,15 @@
 package org.wa.google.fit.integration.service.mapper;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
+import org.wa.google.fit.integration.service.dto.AggregateResponseDto;
+import org.wa.google.fit.integration.service.dto.SleepSessionDto;
+import org.wa.google.fit.integration.service.dto.SleepSessionsResponseDto;
+import org.wa.google.fit.integration.service.dto.jsonTree.BucketDto;
+import org.wa.google.fit.integration.service.dto.jsonTree.DataSetDto;
+import org.wa.google.fit.integration.service.dto.jsonTree.PointDto;
+import org.wa.google.fit.integration.service.dto.jsonTree.ValueDto;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -16,25 +22,9 @@ public class GoogleJsonMapper {
 
     public int extractSteps(String json) {
         try {
-            JsonNode root = objectMapper.readTree(json);
-            int totalSteps = 0;
-
-            if (root.has("bucket")) {
-                for (JsonNode bucket : root.get("bucket")) {
-                    JsonNode datasets = bucket.path("dataset");
-                    if (datasets.isArray() && !datasets.isEmpty()) {
-                        JsonNode stepsDataset = datasets.get(0);
-                        for (JsonNode point : stepsDataset.path("point")) {
-                            for (JsonNode value : point.path("value")) {
-                                if (value.has("intVal")) {
-                                    totalSteps += value.get("intVal").asInt(0);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            return totalSteps;
+            AggregateResponseDto response = objectMapper.readValue(json, AggregateResponseDto.class);
+            DataSetDto dataSets = getDataset(response, 0);
+            return sumInt(dataSets);
         } catch (Exception e) {
             return 0;
         }
@@ -42,26 +32,9 @@ public class GoogleJsonMapper {
 
     public double extractCalories(String json) {
         try {
-            JsonNode root = objectMapper.readTree(json);
-            double totalCalories = 0.0;
-
-            if (root.has("bucket")) {
-                for (JsonNode bucket : root.get("bucket")) {
-                    JsonNode datasets = bucket.path("dataset");
-                    if (datasets.isArray() && datasets.size() > 1) {
-                        JsonNode caloriesDataset = datasets.get(1);
-                        for (JsonNode point : caloriesDataset.path("point")) {
-                            for (JsonNode value : point.path("value")) {
-                                if (value.has("fpVal")) {
-                                    totalCalories += value.get("fpVal").asDouble(0.0);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            
-            return totalCalories;
+            AggregateResponseDto response = objectMapper.readValue(json, AggregateResponseDto.class);
+            DataSetDto dataSets = getDataset(response, 1);
+            return sumFp(dataSets);
         } catch (Exception e) {
             return 0.0;
         }
@@ -69,52 +42,32 @@ public class GoogleJsonMapper {
 
     public double extractDistance(String json) {
         try {
-            JsonNode root = objectMapper.readTree(json);
-            double totalDistanceMeters = 0.0;
-
-            if (root.has("bucket")) {
-                for (JsonNode bucket : root.get("bucket")) {
-                    JsonNode datasets = bucket.path("dataset");
-                    if (datasets.isArray() && datasets.size() > 2) {
-                        JsonNode distanceDataset = datasets.get(2);
-                        for (JsonNode point : distanceDataset.path("point")) {
-                            for (JsonNode value : point.path("value")) {
-                                if (value.has("fpVal")) {
-                                    totalDistanceMeters += value.get("fpVal").asDouble(0.0);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            
-            return totalDistanceMeters / 1000.0;
+            AggregateResponseDto response = objectMapper.readValue(json, AggregateResponseDto.class);
+            DataSetDto dataSets = getDataset(response, 2);
+            return sumFp(dataSets) / 1000.0;
         } catch (Exception e) {
             return 0.0;
         }
     }
 
     public List<Double> extractHeartRateSeries(String json) {
-        List<Double> heartRateSeries = new ArrayList<>();
         try {
-            JsonNode root = objectMapper.readTree(json);
-            if (root.has("bucket")) {
-                for (JsonNode bucket : root.get("bucket")) {
-                    for (JsonNode dataset : bucket.path("dataset")) {
-                        for (JsonNode point : dataset.path("point")) {
-                            for (JsonNode value : point.path("value")) {
-                                if (value.has("fpVal")) {
-                                    heartRateSeries.add(value.get("fpVal").asDouble(0.0));
-                                }
-                            }
-                        }
+            AggregateResponseDto root = objectMapper.readValue(json, AggregateResponseDto.class);
+            DataSetDto dataSets = getDataset(root, 0);
+            List<Double> heartRateSeries = new ArrayList<>();
+            if (dataSets != null && dataSets.getPoint() != null) {
+                for (PointDto p : dataSets.getPoint()) {
+                    if (p.getValue() == null) continue;
+                    for (ValueDto v : p.getValue()) {
+                        if (v.getFpVal() != null) heartRateSeries.add(v.getFpVal());
                     }
                 }
             }
+
+            return heartRateSeries;
         } catch (Exception e) {
             return List.of();
         }
-        return heartRateSeries;
     }
 
     public double extractAverageBpm(String json) {
@@ -131,17 +84,17 @@ public class GoogleJsonMapper {
 
     public double extractTotalSleepHoursFromSessions(String json) {
         try {
-            JsonNode root = new ObjectMapper().readTree(json);
-            JsonNode sessions = root.path("session");
+            SleepSessionsResponseDto response = objectMapper.readValue(json, SleepSessionsResponseDto.class);
 
-            double totalMillis = 0;
+            if (response.getSession() == null) return 0.0;
 
-            for (JsonNode session : sessions) {
-                int activityType = session.path("activityType").asInt(0);
-                if (activityType != 72) continue;
+            double totalMillis = 0.0;
 
-                long start = Long.parseLong(session.path("startTimeMillis").asText("0"));
-                long end = Long.parseLong(session.path("endTimeMillis").asText("0"));
+            for (SleepSessionDto session : response.getSession()) {
+                if (session.getActivityType() == null || session.getActivityType() != 72) continue;
+
+                long start = parseLongSleepHours(session.getStartTimeMillis());
+                long end = parseLongSleepHours(session.getEndTimeMillis());
 
                 if (start > 0 && end > start) {
                     totalMillis += (end - start);
@@ -151,6 +104,55 @@ public class GoogleJsonMapper {
             return totalMillis / (1000.0 * 60 * 60);
         } catch (Exception e) {
             return 0.0;
+        }
+    }
+
+    private DataSetDto getDataset(AggregateResponseDto response, int index) {
+        if (response.getBucket() == null) return null;
+
+        for (BucketDto bucket : response.getBucket()) {
+            if (bucket.getDataset() == null || bucket.getDataset().size() <= index) {
+                continue;
+            }
+            return bucket.getDataset().get(index);
+        }
+
+        return null;
+    }
+
+    private double sumFp(DataSetDto ds) {
+        if (ds == null || ds.getPoint() == null) return 0;
+
+        double sum = 0;
+
+        for (PointDto p : ds.getPoint()) {
+            if (p.getValue() == null) continue;
+            for (ValueDto v : p.getValue()) {
+                if (v.getFpVal() != null) sum += v.getFpVal();
+            }
+        }
+        return sum;
+    }
+
+    private int sumInt(DataSetDto ds) {
+        if (ds == null || ds.getPoint() == null) return 0;
+
+        int sum = 0;
+
+        for (PointDto p : ds.getPoint()) {
+            if (p.getValue() == null) continue;
+            for (ValueDto v : p.getValue()) {
+                if (v.getIntVal() != null) sum += v.getIntVal();
+            }
+        }
+        return sum;
+    }
+
+    private long parseLongSleepHours(String value) {
+        try {
+            return Long.parseLong(value);
+        } catch (Exception e) {
+            return 0L;
         }
     }
 }

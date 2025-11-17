@@ -8,7 +8,7 @@
         <version>3.5.7</version>
         <relativePath/> <!-- lookup parent from repository -->
     </parent>
-    <groupId>org.google.fit.integration.service</groupId>
+    <groupId>org.wa.google.fit.integration.service</groupId>
     <artifactId>lissafit</artifactId>
     <version>0.0.1-SNAPSHOT</version>
     <name>google-fit-integration-service</name>
