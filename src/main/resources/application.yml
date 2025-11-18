@@ -41,8 +41,12 @@ jwt:
   secret:
     access: ${JWT_SECRET_ACCESS}
 
+integration:
+  google-fit:
+    base-url: "https://www.googleapis.com/fitness/v1/users/me"
+    timeout: 5000
+
 google-fit:
-  base-url: "https://www.googleapis.com/fitness/v1/users/me"
   aggregate-endpoint: "/dataset:aggregate"
   sessions-endpoint: "/sessions"
   token-endpoint: "/token"
@@ -53,6 +57,7 @@ google-fit:
   redirect-url: "http://localhost:8082/v1/oauth/callback"
   authorize-base-url: "https://accounts.google.com/o/oauth2/v2/auth"
   googleapis-base-url: "https://oauth2.googleapis.com"
+  time-bucket: 86400000
   scope: >
     https://www.googleapis.com/auth/fitness.activity.read
     https://www.googleapis.com/auth/fitness.location.read

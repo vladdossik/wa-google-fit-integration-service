@@ -31,6 +31,9 @@ public class GoogleFitClient {
     @Value("${google-fit.sleep-activity-type}")
     private int sleepActivityType;
 
+    @Value("${google-fit.time-bucket}")
+    private int timeBucket;
+
     @Retry(name = "googleFitApi")
     public Mono<String> aggregate(String accessToken, OffsetDateTime date, String... dataTypes) {
         long startMillis = date.toInstant().toEpochMilli();
@@ -42,7 +45,7 @@ public class GoogleFitClient {
 
         AggregateRequestDto body = new AggregateRequestDto(
                 aggregateByList,
-                new BucketByTimeDto(86400000),
+                new BucketByTimeDto(timeBucket),
                 startMillis,
                 endMillis
         );

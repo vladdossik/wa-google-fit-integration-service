@@ -2,6 +2,7 @@ package org.wa.google.fit.integration.service.mapper;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.wa.google.fit.integration.service.dto.AggregateResponseDto;
 import org.wa.google.fit.integration.service.dto.SleepSessionDto;
@@ -14,6 +15,7 @@ import org.wa.google.fit.integration.service.dto.jsonTree.ValueDto;
 import java.util.ArrayList;
 import java.util.List;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class GoogleJsonMapper {
@@ -26,6 +28,7 @@ public class GoogleJsonMapper {
             DataSetDto dataSets = getDataset(response, 0);
             return sumInt(dataSets);
         } catch (Exception e) {
+            log.error("Ошибка extractSteps: не удалось прочитать JSON {}", json);
             return 0;
         }
     }
@@ -36,6 +39,7 @@ public class GoogleJsonMapper {
             DataSetDto dataSets = getDataset(response, 1);
             return sumFp(dataSets);
         } catch (Exception e) {
+            log.error("Ошибка extractCalories: не удалось прочитать JSON {}", json);
             return 0.0;
         }
     }
@@ -46,6 +50,7 @@ public class GoogleJsonMapper {
             DataSetDto dataSets = getDataset(response, 2);
             return sumFp(dataSets) / 1000.0;
         } catch (Exception e) {
+            log.error("Ошибка extractDistance: не удалось прочитать JSON {}", json);
             return 0.0;
         }
     }
@@ -66,6 +71,7 @@ public class GoogleJsonMapper {
 
             return heartRateSeries;
         } catch (Exception e) {
+            log.error("Ошибка extractHeartRateSeries: не удалось прочитать JSON {}", json);
             return List.of();
         }
     }
@@ -103,6 +109,7 @@ public class GoogleJsonMapper {
 
             return totalMillis / (1000.0 * 60 * 60);
         } catch (Exception e) {
+            log.error("Ошибка extractTotalSleepHoursFromSessions: не удалось прочитать JSON {}", json);
             return 0.0;
         }
     }
@@ -116,7 +123,6 @@ public class GoogleJsonMapper {
             }
             return bucket.getDataset().get(index);
         }
-
         return null;
     }
 
