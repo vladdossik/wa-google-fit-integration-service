@@ -55,7 +55,7 @@ public class GoogleTokenRefreshServiceImpl implements GoogleTokenRefreshService 
                         .with("client_secret", clientSecret)
                         .with("refresh_token", refreshToken)
                         .with("grant_type", "refresh_token")
-                        .with("scope", constants.getScope()))
+                        .with("scope", constants.getScope().replace("\n", " ")))
                 .retrieve()
                 .onStatus(HttpStatusCode::isError, clientResponse ->
                         clientResponse.bodyToMono(String.class).flatMap(errorBody -> Mono.error(new ParseTokenException("Не удалось обновить токен: " + clientResponse.statusCode() + " - " + errorBody)))

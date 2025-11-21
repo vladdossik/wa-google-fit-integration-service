@@ -28,6 +28,6 @@ public class OAuthConstants {
                 + "&response_type=code"
                 + "&access_type=offline"
                 + "&prompt=consent"
-                + "&scope=" + URLEncoder.encode(scope, StandardCharsets.UTF_8);
+                + "&scope=" + URLEncoder.encode(scope.replace("\n", " "), StandardCharsets.UTF_8);
     }
 }
