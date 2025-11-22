@@ -58,9 +58,15 @@ google-fit:
   authorize-base-url: "https://accounts.google.com/o/oauth2/v2/auth"
   googleapis-base-url: "https://oauth2.googleapis.com"
   time-bucket: 86400000
-  scope: >
+  scope: |
     https://www.googleapis.com/auth/fitness.activity.read
     https://www.googleapis.com/auth/fitness.location.read
     https://www.googleapis.com/auth/fitness.body.read
     https://www.googleapis.com/auth/fitness.heart_rate.read
     https://www.googleapis.com/auth/fitness.sleep.read
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+  api-docs:
+    path: /v3/api-docs
