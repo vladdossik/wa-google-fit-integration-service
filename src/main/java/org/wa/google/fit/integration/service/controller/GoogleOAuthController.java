@@ -1,5 +1,8 @@
 package org.wa.google.fit.integration.service.controller;
 
+import io.swagger.v3.oas.annotations.Hidden;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.wa.google.fit.integration.service.constants.OAuthConstants;
 import org.wa.google.fit.integration.service.dto.GoogleAccessTokenResponse;
 import org.wa.google.fit.integration.service.dto.GoogleUserResponse;
@@ -23,10 +26,14 @@ import java.util.Map;
 @RestController
 @RequestMapping("/v1/oauth")
 @RequiredArgsConstructor
+@Tag(name = "Google OAuth", description = "Работа с Google OAuth авторизацией")
 public class GoogleOAuthController {
     private final GoogleOAuthService googleOAuthService;
     private final OAuthConstants constants;
 
+    @Operation(
+            summary = "Авторизация в Google OAuth (перенаправляет на форму google)"
+    )
     @GetMapping("/authorize")
     public ResponseEntity<Void> authorize() {
         return ResponseEntity.status(HttpStatus.FOUND)
@@ -34,6 +41,7 @@ public class GoogleOAuthController {
                 .build();
     }
 
+    @Hidden
     @GetMapping("/callback")
     public Mono<ResponseEntity<Map<String, String>>> handleGoogleCallback(
             @RequestParam String code) {
@@ -43,6 +51,7 @@ public class GoogleOAuthController {
                         .body(Map.of("error", e.getMessage()))));
     }
 
+    @Hidden
     @GetMapping("/refresh")
     public Mono<ResponseEntity<Map<String, String>>> refreshToken(
             @RequestParam String email
@@ -53,6 +62,7 @@ public class GoogleOAuthController {
                         .body(Map.of("error", e.getMessage()))));
     }
 
+    @Hidden
     @GetMapping("/me")
     public Mono<GoogleUserResponse> me(@AuthenticationPrincipal OidcUser user) {
         return Mono.just(new GoogleUserResponse(
@@ -60,6 +70,7 @@ public class GoogleOAuthController {
         ));
     }
 
+    @Hidden
     @GetMapping("/token/google")
     public Mono<GoogleAccessTokenResponse> getGoogleToken(@RegisteredOAuth2AuthorizedClient("google") OAuth2AuthorizedClient client) {
         if (client == null) {

@@ -67,3 +67,9 @@ google-fit:
     https://www.googleapis.com/auth/fitness.body.read
     https://www.googleapis.com/auth/fitness.heart_rate.read
     https://www.googleapis.com/auth/fitness.sleep.read
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+  api-docs:
+    path: /v3/api-docs
