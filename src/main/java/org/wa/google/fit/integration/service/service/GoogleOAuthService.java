@@ -5,6 +5,6 @@ import reactor.core.publisher.Mono;
 import java.util.Map;
 
 public interface GoogleOAuthService {
-    Mono<Map<String, String>> exchangeCodeForTokens(String code, String email);
+    Mono<Map<String, String>> exchangeCodeForTokens(String code);
     Mono<Map<String, String>> refreshAccessToken(String email);
 }

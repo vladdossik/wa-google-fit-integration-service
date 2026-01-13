@@ -59,6 +59,9 @@ google-fit:
   googleapis-base-url: "https://oauth2.googleapis.com"
   time-bucket: 86400000
   scope: >
+    openid
+    profile
+    email
     https://www.googleapis.com/auth/fitness.activity.read
     https://www.googleapis.com/auth/fitness.location.read
     https://www.googleapis.com/auth/fitness.body.read

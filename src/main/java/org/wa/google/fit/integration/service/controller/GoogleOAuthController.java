@@ -36,9 +36,8 @@ public class GoogleOAuthController {
 
     @GetMapping("/callback")
     public Mono<ResponseEntity<Map<String, String>>> handleGoogleCallback(
-            @RequestParam String code,
-            @RequestParam(required = false) String email) {
-        return googleOAuthService.exchangeCodeForTokens(code, email)
+            @RequestParam String code) {
+        return googleOAuthService.exchangeCodeForTokens(code)
                 .map(ResponseEntity::ok)
                 .onErrorResume(e -> Mono.just(ResponseEntity.badRequest()
                         .body(Map.of("error", e.getMessage()))));

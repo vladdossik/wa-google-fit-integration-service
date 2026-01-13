@@ -1,8 +1,10 @@
 package org.wa.google.fit.integration.service.service.impl;
 
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
+import lombok.extern.slf4j.Slf4j;
 import org.wa.google.fit.integration.service.constants.OAuthConstants;
 import org.wa.google.fit.integration.service.exception.ParseTokenException;
 import org.wa.google.fit.integration.service.exception.TokenNotFoundException;
@@ -18,8 +20,10 @@ import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 
+import java.util.Base64;
 import java.util.Map;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class GoogleOAuthServiceImpl implements GoogleOAuthService {
@@ -50,7 +54,7 @@ public class GoogleOAuthServiceImpl implements GoogleOAuthService {
                 .build();
     }
 
-    public Mono<Map<String, String>> exchangeCodeForTokens(String code, String email) {
+    public Mono<Map<String, String>> exchangeCodeForTokens(String code) {
         return webClient.post()
                 .uri(tokenEndpoint)
                 .contentType(MediaType.APPLICATION_FORM_URLENCODED)
@@ -67,11 +71,29 @@ public class GoogleOAuthServiceImpl implements GoogleOAuthService {
                 })
                 .map(tokens -> {
                     String refreshToken = tokens.get("refresh_token");
+                    String idToken = tokens.get("id_token");
+                    String email = extractEmailFromIdToken(idToken);
                     if (email != null && refreshToken != null) {
                         tokenStorage.saveToken(email, refreshToken);
                     }
                     return tokens;
                 });
+    }
+
+    private String extractEmailFromIdToken(String idToken) {
+        try {
+            String[] parts = idToken.split("\\.");
+            if (parts.length < 2) throw new IllegalArgumentException("Invalid id_token");
+
+            String payloadJson = new String(Base64.getUrlDecoder().decode(parts[1]));
+
+            ObjectMapper mapper = new ObjectMapper();
+            JsonNode payload = mapper.readTree(payloadJson);
+
+            return payload.get("email").asText();
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to parse id_token", e);
+        }
     }
 
     public Mono<Map<String, String>> refreshAccessToken(String email) {
