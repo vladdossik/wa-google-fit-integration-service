@@ -5,9 +5,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.wa.google.fit.integration.service.constants.OAuthConstants;
-import org.wa.google.fit.integration.service.dto.GoogleRefreshTokenEvent;
 import org.wa.google.fit.integration.service.exception.ParseTokenException;
 import org.wa.google.fit.integration.service.exception.TokenNotFoundException;
 import org.wa.google.fit.integration.service.service.GoogleOAuthService;
@@ -20,9 +18,8 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.wa.google.fit.integration.service.service.KafkaEventService;
 import reactor.core.publisher.Mono;
-import java.time.Instant;
-import java.time.ZoneOffset;
 import java.util.Base64;
 import java.util.Map;
 
@@ -45,12 +42,9 @@ public class GoogleOAuthServiceImpl implements GoogleOAuthService {
     @Value("${GOOGLE_CLIENT_SECRET}")
     private String clientSecret;
 
-    @Value("${kafka.topics.google-refresh-token}")
-    private String googleRefreshTokenTopic;
-
     private final InMemoryTokenStorageService tokenStorage;
+    private final KafkaEventService kafkaEventService;
     private final OAuthConstants constants;
-    private final KafkaTemplate<String, GoogleRefreshTokenEvent> kafkaTemplate;
 
     private WebClient webClient;
 
@@ -83,7 +77,7 @@ public class GoogleOAuthServiceImpl implements GoogleOAuthService {
                         tokenStorage.saveToken(email, refreshToken);
 
                         log.debug("Sending google refresh token to kafka");
-                        sendRefreshTokenToKafka(email, tokens);
+                        kafkaEventService.sendRefreshTokenToKafka(email, tokens);
                     } else {
                         log.warn("No refresh token in response for email: {}", email);
                     }
@@ -117,28 +111,6 @@ public class GoogleOAuthServiceImpl implements GoogleOAuthService {
             });
         } catch (Exception e) {
             throw new ParseTokenException("Не удалось прочитать токен");
-        }
-    }
-
-    private void sendRefreshTokenToKafka(String email, Map<String, String> tokens) {
-        try {
-            GoogleRefreshTokenEvent event = new GoogleRefreshTokenEvent(
-                    email,
-                    tokens.get("refresh_token"),
-                    Instant.now().atOffset(ZoneOffset.UTC),
-                    Integer.parseInt(tokens.get("expires_in"))
-            );
-
-            kafkaTemplate.send(googleRefreshTokenTopic, email, event)
-                    .whenComplete((result, ex) -> {
-                        if (ex == null) {
-                            log.info("Google refresh token sent to Kafka for user: {}", email);
-                        } else {
-                            log.error("Failed to send refresh token");
-                        }
-                    });
-        } catch (Exception e) {
-            log.error("Failed to create or send Kafka event", e);
         }
     }
 

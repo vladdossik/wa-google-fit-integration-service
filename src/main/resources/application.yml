@@ -27,9 +27,6 @@ spring:
     bootstrap-server:
       server:
         port: localhost:9092
-    producer:
-      properties:
-        spring.json.type.mapping: GoogleRefreshTokenEvent
 
 resilience4j:
   retry:
