@@ -23,6 +23,13 @@ spring:
             token-uri: https://oauth2.googleapis.com/token
             user-info-uri: https://openidconnect.googleapis.com/v1/userinfo
             user-name-attribute: sub
+  kafka:
+    bootstrap-server:
+      server:
+        port: localhost:9092
+    producer:
+      properties:
+        spring.json.type.mapping: GoogleRefreshTokenEvent
 
 resilience4j:
   retry:
@@ -59,17 +66,21 @@ google-fit:
   googleapis-base-url: "https://oauth2.googleapis.com"
   time-bucket: 86400000
   scope: >
-    openid
-    profile
-    email
     https://www.googleapis.com/auth/fitness.activity.read
     https://www.googleapis.com/auth/fitness.location.read
     https://www.googleapis.com/auth/fitness.body.read
     https://www.googleapis.com/auth/fitness.heart_rate.read
     https://www.googleapis.com/auth/fitness.sleep.read
+    openid
+    profile
+    email
 
 springdoc:
   swagger-ui:
     path: /swagger-ui.html
   api-docs:
     path: /v3/api-docs
+
+kafka:
+  topics:
+    google-refresh-token: "google.refresh.token"
