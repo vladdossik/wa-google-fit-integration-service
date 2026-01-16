@@ -6,7 +6,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.wa.google.fit.integration.service.dto.GoogleRefreshTokenEvent;
-import org.wa.google.fit.integration.service.service.KafkaEventService;
+import org.wa.google.fit.integration.service.service.KafkaSenderService;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.Map;
@@ -14,7 +14,7 @@ import java.util.Map;
 @Service
 @Slf4j
 @RequiredArgsConstructor
-public class KafkaEventServiceImpl implements KafkaEventService {
+public class KafkaSenderServiceImpl implements KafkaSenderService {
     @Value("${kafka.topics.google-refresh-token}")
     private String googleRefreshTokenTopic;
 

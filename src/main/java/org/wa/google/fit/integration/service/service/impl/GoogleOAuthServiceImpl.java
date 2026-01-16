@@ -18,7 +18,7 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.client.WebClient;
-import org.wa.google.fit.integration.service.service.KafkaEventService;
+import org.wa.google.fit.integration.service.service.KafkaSenderService;
 import reactor.core.publisher.Mono;
 import java.util.Base64;
 import java.util.Map;
@@ -43,7 +43,7 @@ public class GoogleOAuthServiceImpl implements GoogleOAuthService {
     private String clientSecret;
 
     private final InMemoryTokenStorageService tokenStorage;
-    private final KafkaEventService kafkaEventService;
+    private final KafkaSenderService kafkaSenderService;
     private final OAuthConstants constants;
 
     private WebClient webClient;
@@ -77,7 +77,7 @@ public class GoogleOAuthServiceImpl implements GoogleOAuthService {
                         tokenStorage.saveToken(email, refreshToken);
 
                         log.debug("Sending google refresh token to kafka");
-                        kafkaEventService.sendRefreshTokenToKafka(email, tokens);
+                        kafkaSenderService.sendRefreshTokenToKafka(email, tokens);
                     } else {
                         log.warn("No refresh token in response for email: {}", email);
                     }
