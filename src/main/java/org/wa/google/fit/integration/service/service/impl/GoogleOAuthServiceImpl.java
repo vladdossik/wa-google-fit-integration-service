@@ -1,8 +1,10 @@
 package org.wa.google.fit.integration.service.service.impl;
 
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
+import lombok.extern.slf4j.Slf4j;
 import org.wa.google.fit.integration.service.constants.OAuthConstants;
 import org.wa.google.fit.integration.service.exception.ParseTokenException;
 import org.wa.google.fit.integration.service.exception.TokenNotFoundException;
@@ -16,11 +18,13 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.wa.google.fit.integration.service.service.KafkaSenderService;
 import reactor.core.publisher.Mono;
-
+import java.util.Base64;
 import java.util.Map;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class GoogleOAuthServiceImpl implements GoogleOAuthService {
     @Value("${google-fit.googleapis-base-url}")
@@ -39,6 +43,7 @@ public class GoogleOAuthServiceImpl implements GoogleOAuthService {
     private String clientSecret;
 
     private final InMemoryTokenStorageService tokenStorage;
+    private final KafkaSenderService kafkaSenderService;
     private final OAuthConstants constants;
 
     private WebClient webClient;
@@ -50,7 +55,7 @@ public class GoogleOAuthServiceImpl implements GoogleOAuthService {
                 .build();
     }
 
-    public Mono<Map<String, String>> exchangeCodeForTokens(String code, String email) {
+    public Mono<Map<String, String>> exchangeCodeForTokens(String code) {
         return webClient.post()
                 .uri(tokenEndpoint)
                 .contentType(MediaType.APPLICATION_FORM_URLENCODED)
@@ -67,8 +72,14 @@ public class GoogleOAuthServiceImpl implements GoogleOAuthService {
                 })
                 .map(tokens -> {
                     String refreshToken = tokens.get("refresh_token");
+                    String email = extractEmailFromIdToken(tokens.get("id_token"));
                     if (email != null && refreshToken != null) {
                         tokenStorage.saveToken(email, refreshToken);
+
+                        log.debug("Sending google refresh token to kafka");
+                        kafkaSenderService.sendRefreshTokenToKafka(email, tokens);
+                    } else {
+                        log.warn("No refresh token in response for email: {}", email);
                     }
                     return tokens;
                 });
@@ -100,6 +111,22 @@ public class GoogleOAuthServiceImpl implements GoogleOAuthService {
             });
         } catch (Exception e) {
             throw new ParseTokenException("Не удалось прочитать токен");
+        }
+    }
+
+    private String extractEmailFromIdToken(String idToken) {
+        try {
+            String[] parts = idToken.split("\\.");
+            if (parts.length < 2) throw new IllegalArgumentException("Invalid id_token");
+
+            String payloadJson = new String(Base64.getUrlDecoder().decode(parts[1]));
+
+            ObjectMapper mapper = new ObjectMapper();
+            JsonNode payload = mapper.readTree(payloadJson);
+
+            return payload.get("email").asText();
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to parse id_token", e);
         }
     }
 }
