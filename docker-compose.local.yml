@@ -1,25 +1,6 @@
 version: '3.8'
 
 services:
-  postgres:
-    image: postgres:15-alpine
-    container_name: google-fit-postgres
-    environment:
-      POSTGRES_DB: google_fit_db
-      POSTGRES_USER: google_fit_user
-      POSTGRES_PASSWORD: google_fit_password
-    ports:
-      - "5433:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    networks:
-      - google-fit-local-network
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U google_fit_user"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
   kafka:
     profiles: ["infra"]
     image: confluentinc/cp-kafka:7.4.0
@@ -77,19 +58,15 @@ services:
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-your-client-id}
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:-your-client-secret}
       - JWT_SECRET_ACCESS=${JWT_SECRET_ACCESS:-your-jwt-secret}
-      - DB_URL=jdbc:postgresql://postgres:5432/google_fit_db
-      - DB_USERNAME=google_fit_user
-      - DB_PASSWORD=google_fit_password
+      - DB_URL=${DB_URL}
+      - DB_USERNAME=${DB_USERNAME}
+      - DB_PASSWORD=${DB_PASSWORD}
       - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
-    depends_on:
-      postgres:
-        condition: service_healthy
     networks:
       - google-fit-local-network
       - wa-local-network
 
 volumes:
-  postgres_data:
   kafka_data:
 
 networks:
