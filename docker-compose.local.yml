@@ -1,0 +1,100 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: google-fit-postgres
+    environment:
+      POSTGRES_DB: google_fit_db
+      POSTGRES_USER: google_fit_user
+      POSTGRES_PASSWORD: google_fit_password
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - google-fit-local-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U google_fit_user"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  kafka:
+    profiles: ["infra"]
+    image: confluentinc/cp-kafka:7.4.0
+    container_name: wa-kafka
+    environment:
+      KAFKA_NODE_ID: 1
+      CLUSTER_ID: P0gDvN9aU8dF3XRlZ5uxvT
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    ports:
+      - "9092:9092"
+      - "9093:9093"
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    networks:
+      - wa-local-network
+      - google-fit-local-network
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-broker-api-versions --bootstrap-server localhost:9092 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+
+  kafka-ui:
+    profiles: ["infra"]
+    image: provectuslabs/kafka-ui:latest
+    container_name: wa-kafka-ui
+    depends_on:
+      - kafka
+    ports:
+      - "8090:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+    networks:
+      - wa-local-network
+      - google-fit-local-network
+    restart: unless-stopped
+
+  google-fit-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: google-fit-service-local
+    ports:
+      - "8082:8082"
+    environment:
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-your-client-id}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:-your-client-secret}
+      - JWT_SECRET_ACCESS=${JWT_SECRET_ACCESS:-your-jwt-secret}
+      - DB_URL=jdbc:postgresql://postgres:5432/google_fit_db
+      - DB_USERNAME=google_fit_user
+      - DB_PASSWORD=google_fit_password
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - google-fit-local-network
+      - wa-local-network
+
+volumes:
+  postgres_data:
+  kafka_data:
+
+networks:
+  google-fit-local-network:
+    driver: bridge
+  wa-local-network:
+    name: wa-local-network
+    driver: bridge

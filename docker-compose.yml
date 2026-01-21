@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  google-fit-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: google-fit-service
+    ports:
+      - "8082:8082"
+    environment:
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+      - JWT_SECRET_ACCESS=${JWT_SECRET_ACCESS}
+    networks:
+      - google-fit-network
+    restart: unless-stopped
+
+networks:
+  google-fit-network:
+    driver: bridge
