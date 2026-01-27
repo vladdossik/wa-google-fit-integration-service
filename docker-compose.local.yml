@@ -1,52 +1,6 @@
 version: '3.8'
 
 services:
-  kafka:
-    profiles: ["infra"]
-    image: confluentinc/cp-kafka:7.4.0
-    container_name: wa-kafka
-    environment:
-      KAFKA_NODE_ID: 1
-      CLUSTER_ID: P0gDvN9aU8dF3XRlZ5uxvT
-      KAFKA_PROCESS_ROLES: broker,controller
-      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
-      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
-      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
-      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-    ports:
-      - "9092:9092"
-      - "9093:9093"
-    volumes:
-      - kafka_data:/var/lib/kafka/data
-    networks:
-      - wa-local-network
-      - google-fit-local-network
-    healthcheck:
-      test: ["CMD-SHELL", "kafka-broker-api-versions --bootstrap-server localhost:9092 || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-    restart: unless-stopped
-
-  kafka-ui:
-    profiles: ["infra"]
-    image: provectuslabs/kafka-ui:latest
-    container_name: wa-kafka-ui
-    depends_on:
-      - kafka
-    ports:
-      - "8090:8080"
-    environment:
-      KAFKA_CLUSTERS_0_NAME: local
-      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
-    networks:
-      - wa-local-network
-      - google-fit-local-network
-    restart: unless-stopped
-
   google-fit-service:
     build:
       context: .
@@ -55,23 +9,14 @@ services:
     ports:
       - "8082:8082"
     environment:
-      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-your-client-id}
-      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:-your-client-secret}
-      - JWT_SECRET_ACCESS=${JWT_SECRET_ACCESS:-your-jwt-secret}
-      - DB_URL=${DB_URL}
-      - DB_USERNAME=${DB_USERNAME}
-      - DB_PASSWORD=${DB_PASSWORD}
-      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-your-client-id}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-your-client-secret}
+      JWT_SECRET_ACCESS: ${JWT_SECRET_ACCESS:-your-jwt-secret}
+      KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS:-wa-kafka:9092}
     networks:
-      - google-fit-local-network
       - wa-local-network
-
-volumes:
-  kafka_data:
+    restart: unless-stopped
 
 networks:
-  google-fit-local-network:
-    driver: bridge
   wa-local-network:
-    name: wa-local-network
-    driver: bridge
+    external: true
