@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  google-fit-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: google-fit-service-local
+    ports:
+      - "8082:8082"
+    environment:
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-your-client-id}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-your-client-secret}
+      JWT_SECRET_ACCESS: ${JWT_SECRET_ACCESS:-your-jwt-secret}
+      KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS:-wa-kafka:9092}
+    networks:
+      - wa-local-network
+    restart: unless-stopped
+
+networks:
+  wa-local-network:
+    external: true
