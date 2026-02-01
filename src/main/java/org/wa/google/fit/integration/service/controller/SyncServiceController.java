@@ -13,7 +13,7 @@ import reactor.core.publisher.Mono;
 import java.time.OffsetDateTime;
 
 @RestController
-@RequestMapping("/v1/google-fit/sync")
+@RequestMapping("/internal/v1/google-fit/sync")
 @RequiredArgsConstructor
 public class SyncServiceController {
     private final GoogleFitService googleFitService;
