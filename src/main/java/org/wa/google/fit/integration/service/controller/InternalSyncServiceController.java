@@ -15,7 +15,7 @@ import java.time.OffsetDateTime;
 @RestController
 @RequestMapping("/internal/v1/google-fit/sync")
 @RequiredArgsConstructor
-public class SyncServiceController {
+public class InternalSyncServiceController {
     private final GoogleFitService googleFitService;
 
     @GetMapping("/activity")
