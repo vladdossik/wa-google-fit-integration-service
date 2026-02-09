@@ -30,7 +30,7 @@ public class SecurityConfig {
                 .authorizeExchange(ex -> ex
                         .pathMatchers(
                                 "/v1/oauth/**",
-                                "v1/google-fit/sync/**",
+                                "/internal/v1/google-fit/sync/**",
                                 "/swagger-ui.html",
                                 "/swagger-ui/**",
                                 "/v3/api-docs/**",
