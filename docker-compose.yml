@@ -9,13 +9,15 @@ services:
     ports:
       - "8082:8082"
     environment:
-      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
-      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
-      - JWT_SECRET_ACCESS=${JWT_SECRET_ACCESS}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+      JWT_SECRET_ACCESS: ${JWT_SECRET_ACCESS:-Y5ncOVqSI/HnJisBxE0TDsk/3cMP/FbwMDL+elybXkqsmpjNIqbjwCCOM8wTznVkqxeYZqf+ppsr4wzHNt8peA==}
+      KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS:-wa-kafka:9092}
     networks:
-      - google-fit-network
+      - wa-local-network
     restart: unless-stopped
 
 networks:
-  google-fit-network:
-    driver: bridge
+  wa-local-network:
+    name: wa-local-network
+    external: true
