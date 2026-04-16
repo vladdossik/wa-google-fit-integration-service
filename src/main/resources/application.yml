@@ -24,9 +24,12 @@ spring:
             user-info-uri: https://openidconnect.googleapis.com/v1/userinfo
             user-name-attribute: sub
   kafka:
-    bootstrap-server:
-      server:
-        port: localhost:9092
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        spring.json.add.type.headers: false
 
 resilience4j:
   retry:
@@ -80,4 +83,4 @@ springdoc:
 
 kafka:
   topics:
-    google-refresh-token: "google.refresh.token"
+    google-refresh-token: ${KAFKA_TOPICS_GOOGLE_REFRESH_TOKEN:google.refresh.token}

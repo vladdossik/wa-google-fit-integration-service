@@ -15,6 +15,7 @@ import java.util.Map;
 @Slf4j
 @RequiredArgsConstructor
 public class KafkaSenderServiceImpl implements KafkaSenderService {
+
     @Value("${kafka.topics.google-refresh-token}")
     private String googleRefreshTokenTopic;
 
